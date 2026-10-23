@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Registro de Licencias</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    color-scheme:light;
+    --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10);
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+    --brand:#2a78d6; --brand-ink:#fff; --rojo:#fde2e2; --rojo-ink:#7f1d1d; --ok:#006300; --err:#b91c1c;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:where(:not([data-theme="light"])){
+      color-scheme:dark;
+      --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+      --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
+      --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+      --brand:#3987e5; --rojo:#4a2323; --rojo-ink:#fecaca; --ok:#0ca30c; --err:#f87171;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --brand:#3987e5; --rojo:#4a2323; --rojo-ink:#fecaca; --ok:#0ca30c; --err:#f87171;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--page);color:var(--ink)}
+  h1,h2,h3{margin:0}
+  .hidden{display:none!important}
+
+  /* estructura */
+  #app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+  aside{background:var(--surface);border-right:1px solid var(--border);padding:16px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+  aside h1{font-size:15px;padding:4px 10px 14px}
+  .nav{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;border:0;background:none;color:var(--ink2);font:inherit;text-align:left;cursor:pointer;width:100%}
+  .nav:hover{background:var(--page)}
+  .nav.on{background:var(--brand);color:var(--brand-ink)}
+  .nav svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .sp{flex:1}
+  .quien{white-space:pre-line;font-size:12px;color:var(--muted);padding:6px 10px;overflow-wrap:anywhere}
+  main{padding:20px;min-width:0;max-width:1400px;width:100%}
+  h2.t{font-size:20px;margin-bottom:14px}
+  @media(max-width:860px){
+    #app{grid-template-columns:1fr}
+    aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:8px}
+    aside h1{display:none}.sp{display:none}.quien{display:none}
+    .nav{width:auto}
+  }
+
+  /* componentes */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px}
+  label{display:block;font-size:12px;color:var(--ink2);margin-bottom:3px}
+  input,select,button{font:inherit;padding:7px 9px;border:1px solid var(--axis);border-radius:8px;width:100%;background:var(--surface);color:var(--ink)}
+  button{cursor:pointer;width:auto;background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+  button.sec{background:var(--surface);color:var(--ink);border-color:var(--axis)}
+  button.peligro{background:var(--surface);color:var(--err);border-color:var(--err);padding:3px 9px;font-size:12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end}
+  .msg{margin-top:8px;font-size:13px}.err{color:var(--err)}.ok{color:var(--ok)}
+  .nota{color:var(--muted);font-size:12px;margin-top:8px}
+  .tablewrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;min-width:980px}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--grid);white-space:nowrap}
+  th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  tr.excede td{background:var(--rojo);color:var(--rojo-ink)}
+  .tag{padding:2px 8px;border-radius:99px;font-size:12px;border:1px solid var(--border);color:var(--ink2)}
+  .tag.si{border-color:var(--s3);color:var(--ink)}
+  #login{max-width:340px;margin:12vh auto;padding:0 16px}
+  #login .card{display:grid;gap:10px}
+  .aviso{background:var(--rojo);color:var(--rojo-ink);padding:8px 10px;border-radius:8px;font-size:13px}
+
+  /* dashboard */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}
+  .kpi .v{font-size:30px;font-weight:600;line-height:1.1}
+  .kpi .l{color:var(--ink2);font-size:12px;margin-top:4px}
+  .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;margin-bottom:16px}
+  @media(max-width:480px){.charts{grid-template-columns:1fr}}
+  .chart h3{font-size:14px}
+  .chart .sub{color:var(--muted);font-size:12px;margin:2px 0 10px}
+  .box{position:relative;height:260px}
+  .box.alto{height:320px}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login" class="hidden">
+  <div class="card">
+    <h1>Registro de Licencias</h1>
+    <div><label for="email">Correo</label><input id="email" type="email" autocomplete="username"></div>
+    <div><label for="pass">Contraseña</label><input id="pass" type="password" autocomplete="current-password"></div>
+    <button id="btnLogin">Ingresar</button>
+    <div id="loginMsg" class="msg err"></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hidden">
+  <aside>
+    <h1>Registro de Licencias</h1>
+    <button class="nav on" data-v="dashboard"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Dashboard</button>
+    <button class="nav" data-v="listado"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Listado</button>
+    <button class="nav" data-v="nuevo"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuevo registro</button>
+    <button class="nav" data-v="personal"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-4 3-6 6.5-6s6 2 6.5 6M17 11a3 3 0 0 0 0-6M21.5 20c-.3-2.6-1.6-4.4-3.5-5.3"/></svg>Personal</button>
+    <button class="nav hidden" data-v="usuarios" id="navUsuarios"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Usuarios</button>
+    <div class="sp"></div>
+    <div class="quien" id="quien"></div>
+    <button class="sec" id="btnSalir">Cerrar sesión</button>
+  </aside>
+
+  <main>
+    <!-- ===== DASHBOARD ===== -->
+    <section id="v-dashboard">
+      <h2 class="t">Dashboard</h2>
+      <div class="card"><div class="grid">
+        <div><label for="dAnio">Año</label><select id="dAnio"></select></div>
+        <div><label for="dTipo">Tipo de personal</label><select id="dTipo"><option value="">Todos</option><option>Administrativo</option><option>Docente</option></select></div>
+        <div><label for="dSede">Sede</label><select id="dSede"><option value="">Todas</option></select></div>
+      </div></div>
+
+      <div class="kpis" id="kpis"></div>
+
+      <div class="charts">
+        <div class="card chart"><h3>Licencias por mes</h3><div class="sub" id="subMes">Cantidad de licencias iniciadas</div><div class="box"><canvas id="cMes" role="img" aria-label="Licencias por mes"></canvas></div></div>
+        <div class="card chart"><h3>Días de licencia por mes</h3><div class="sub">Suma de días</div><div class="box"><canvas id="cDiasMes" role="img" aria-label="Días de licencia por mes"></canvas></div></div>
+        <div class="card chart"><h3>Tipo de personal</h3><div class="sub">Licencias según tipo</div><div class="box"><canvas id="cTipo" role="img" aria-label="Licencias por tipo de personal"></canvas></div></div>
+        <div class="card chart"><h3>Subsidiado</h3><div class="sub">Licencias subsidiadas y no subsidiadas</div><div class="box"><canvas id="cSub" role="img" aria-label="Licencias subsidiadas"></canvas></div></div>
+        <div class="card chart"><h3>Duración de las licencias</h3><div class="sub">Licencias según cantidad de días</div><div class="box"><canvas id="cDur" role="img" aria-label="Duración de licencias"></canvas></div></div>
+        <div class="card chart"><h3>Días por sede</h3><div class="sub">Suma de días de licencia</div><div class="box"><canvas id="cSede" role="img" aria-label="Días por sede"></canvas></div></div>
+        <div class="card chart"><h3>Escuelas profesionales con más días</h3><div class="sub">Docentes · 10 principales</div><div class="box alto"><canvas id="cEscuela" role="img" aria-label="Días por escuela profesional"></canvas></div></div>
+        <div class="card chart"><h3>Oficinas con más días</h3><div class="sub">Administrativos · 10 principales</div><div class="box alto"><canvas id="cOficina" role="img" aria-label="Días por oficina"></canvas></div></div>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:14px;margin-bottom:8px">Personal que supera los <span class="lim"></span> días en el año</h3>
+        <div class="tablewrap"><table style="min-width:700px">
+          <thead><tr><th>DNI</th><th>Apellidos y nombres</th><th>Tipo</th><th>Escuela / Oficina</th><th>Sede</th><th class="num">Año</th><th class="num">Días</th></tr></thead>
+          <tbody id="tbExcede"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ===== LISTADO ===== -->
+    <section id="v-listado" class="hidden">
+      <h2 class="t">Listado de licencias</h2>
+      <div class="card"><div class="grid">
+        <div><label for="fDni">Buscar por DNI</label><input id="fDni" inputmode="numeric" maxlength="8" placeholder="8 dígitos"></div>
+        <div><label for="fNombre">Buscar por nombres y apellidos</label><input id="fNombre" placeholder="Ej. Torres Manuel"></div>
+        <div><label for="fDesde">Fecha desde</label><input id="fDesde" type="date"></div>
+        <div><label for="fHasta">Fecha hasta</label><input id="fHasta" type="date"></div>
+        <div><label for="fTipo">Tipo de personal</label><select id="fTipo"><option value="">Todos</option><option>Administrativo</option><option>Docente</option></select></div>
+        <div><label for="fDep">Escuela / Oficina</label><input id="fDep" placeholder="Ej. Derecho"></div>
+        <div><label for="fSede">Sede</label><select id="fSede"><option value="">Todas</option></select></div>
+        <div style="display:flex;gap:8px"><button id="btnBuscar">Buscar</button><button class="sec" id="btnLimpiar">Limpiar</button></div>
+      </div></div>
+      <div class="card">
+        <div id="titulo" style="font-weight:600;margin-bottom:8px">Últimas 10 licencias</div>
+        <div class="tablewrap"><table id="tablaLic"><thead></thead><tbody id="tbLista"><tr><td>Cargando…</td></tr></tbody></table></div>
+        <div class="nota">Fila en rojo suave: más de <span class="lim"></span> días acumulados en el año. Sin filtros se muestran las 10 más recientes; con filtros, hasta 200.</div>
+      </div>
+    </section>
+
+    <!-- ===== NUEVO REGISTRO ===== -->
+    <section id="v-nuevo" class="hidden">
+      <h2 class="t">Nuevo registro</h2>
+      <div class="card">
+        <div class="grid">
+          <div><label for="nDni">DNI del personal</label><input id="nDni" inputmode="numeric" maxlength="8" placeholder="8 dígitos"></div>
+          <div><label for="nCert">N° de certificado</label><input id="nCert"></div>
+          <div><label for="nIni">Fecha de inicio</label><input id="nIni" type="date"></div>
+          <div><label for="nFin">Fecha fin</label><input id="nFin" type="date"></div>
+          <div><label for="nSub">Subsidiado</label><select id="nSub"><option value="false">No</option><option value="true">Sí</option></select></div>
+          <div><button id="btnGuardarLic">Guardar licencia</button></div>
+        </div>
+        <div id="nInfo" class="msg"></div>
+        <div id="nMsg" class="msg"></div>
+        <div class="nota">Los días se calculan solos (fin − inicio + 1). Si el DNI no existe, agrégalo antes en la opción Personal.</div>
+      </div>
+      <div class="card">
+        <div style="font-weight:600;margin-bottom:8px">Últimas 10 licencias registradas</div>
+        <div class="tablewrap"><table id="tablaNuevo"><thead></thead><tbody id="tbNuevo"></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- ===== PERSONAL ===== -->
+    <section id="v-personal" class="hidden">
+      <h2 class="t">Personal</h2>
+      <div class="card">
+        <div class="grid">
+          <div><label for="pDni">DNI</label><input id="pDni" inputmode="numeric" maxlength="8"></div>
+          <div><label for="pNom">Nombres</label><input id="pNom"></div>
+          <div><label for="pApe">Apellidos</label><input id="pApe"></div>
+          <div><label for="pCel">Celular</label><input id="pCel" inputmode="tel"></div>
+          <div><label for="pTipo">Tipo</label><select id="pTipo"><option>Administrativo</option><option>Docente</option></select></div>
+          <div><label for="pDep" id="lblDep">Oficina</label><input id="pDep"></div>
+          <div><label for="pSede">Sede</label><input id="pSede" list="sedes" placeholder="Ej. Cusco"><datalist id="sedes"></datalist></div>
+          <div><button id="btnGuardarPer">Guardar personal</button></div>
+        </div>
+        <div id="pMsg" class="msg"></div>
+      </div>
+      <div class="card">
+        <div class="tablewrap"><table>
+          <thead><tr><th>DNI</th><th>Apellidos y nombres</th><th>Celular</th><th>Tipo</th><th>Escuela / Oficina</th><th>Sede</th></tr></thead>
+          <tbody id="tbPersonal"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ===== USUARIOS (solo administrador principal) ===== -->
+    <section id="v-usuarios" class="hidden">
+      <h2 class="t">Usuarios con acceso</h2>
+      <div class="card">
+        <div class="grid">
+          <div><label for="uEmail">Correo del nuevo usuario</label><input id="uEmail" type="email" autocomplete="off"></div>
+          <div><label for="uPass">Contraseña (mínimo 8 caracteres)</label><input id="uPass" type="text" autocomplete="off"></div>
+          <div><button id="btnCrearUsuario">Crear usuario</button></div>
+        </div>
+        <div id="uMsg" class="msg"></div>
+      </div>
+      <div class="card">
+        <div class="tablewrap"><table style="min-width:600px">
+          <thead><tr><th>Correo</th><th>Rol</th><th>Creado</th><th></th></tr></thead>
+          <tbody id="tbUsuarios"></tbody>
+        </table></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ============ CONFIGURACIÓN: datos de tu proyecto Supabase (Project Settings > API) ============ */
+const SUPABASE_URL = "https://ugizqitgustiyldhaswh.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_eCfH9X3X1YhoXf-4xXYPFg_EbsvJSh5";
+const LIMITE_DIAS = 21;
+/* ================================================================================================ */
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = d => d ? d.split("-").reverse().join("/") : "";
+const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+document.querySelectorAll(".lim").forEach(e => e.textContent = LIMITE_DIAS);
+
+const configurado = !SUPABASE_URL.includes("TU-PROYECTO");
+const sb = window.supabase.createClient(
+  configurado ? SUPABASE_URL : "https://example.supabase.co",
+  configurado ? SUPABASE_ANON_KEY : "anon"
+);
+let ROL = null;
+
+/* ---------- Sesión ---------- */
+async function iniciar() {
+  if (!configurado) {
+    $("login").classList.remove("hidden");
+    $("loginMsg").textContent = "Falta configurar SUPABASE_URL y SUPABASE_ANON_KEY en index.html.";
+    return;
+  }
+  sb.auth.onAuthStateChange((_e, s) => { setTimeout(() => entrar(s), 0); });
+  const { data } = await sb.auth.getSession();
+  entrar(data.session);
+}
+async function entrar(session) {
+  if (!session) { ROL = null; $("login").classList.remove("hidden"); $("app").classList.add("hidden"); return; }
+  const { data } = await sb.from("administradores").select("rol,email").eq("user_id", session.user.id).maybeSingle();
+  if (!data) {
+    await sb.auth.signOut();
+    $("loginMsg").textContent = "Tu usuario no tiene acceso a esta aplicación.";
+    return;
+  }
+  ROL = data.rol;
+  $("quien").textContent = session.user.email + (ROL === "admin" ? "\nAdministrador principal" : "");
+  $("navUsuarios").classList.toggle("hidden", ROL !== "admin");
+  $("login").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  irA(vistaActual || "dashboard");
+}
+$("btnLogin").onclick = async () => {
+  $("loginMsg").textContent = "";
+  const { error } = await sb.auth.signInWithPassword({ email: $("email").value.trim(), password: $("pass").value });
+  if (error) $("loginMsg").textContent = "Correo o contraseña incorrectos.";
+};
+$("pass").addEventListener("keydown", e => { if (e.key === "Enter") $("btnLogin").click(); });
+$("btnSalir").onclick = () => sb.auth.signOut();
+
+/* ---------- Menú ---------- */
+let vistaActual = null;
+function irA(v) {
+  vistaActual = v;
+  document.querySelectorAll(".nav").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  ["dashboard","listado","nuevo","personal","usuarios"].forEach(x => $("v-" + x).classList.toggle("hidden", x !== v));
+  if (v === "dashboard") cargarDashboard();
+  if (v === "listado")   { cargarSedes(); cargarLista(); }
+  if (v === "nuevo")     cargarNuevo();
+  if (v === "personal")  { cargarPersonal(); cargarSedes(); }
+  if (v === "usuarios")  cargarUsuarios();
+}
+document.querySelectorAll(".nav").forEach(b => b.onclick = () => irA(b.dataset.v));
+
+/* ---------- Utilidades de datos ---------- */
+async function traerTodo(tabla, ajustar) {
+  let todo = [], desde = 0; const paso = 1000;
+  while (true) {
+    let q = sb.from(tabla).select("*");
+    if (ajustar) q = ajustar(q);
+    const { data, error } = await q.order("id").range(desde, desde + paso - 1);
+    if (error) throw error;
+    todo = todo.concat(data);
+    if (data.length < paso) break;
+    desde += paso;
+  }
+  return todo;
+}
+function mensaje(id, texto, ok) { const e = $(id); e.textContent = texto; e.className = "msg " + (ok ? "ok" : "err"); }
+
+const COLS = `<tr><th>DNI</th><th>Apellidos y nombres</th><th>Tipo</th><th>Escuela / Oficina</th><th>Sede</th>
+  <th>N° certificado</th><th>Inicio</th><th>Fin</th><th class="num">Días</th><th class="num">Acumulado año</th><th>Subsidiado</th><th></th></tr>`;
+function filaLic(r) {
+  return `<tr class="${r.dias_acumulados > LIMITE_DIAS ? "excede" : ""}">
+    <td>${esc(r.dni)}</td><td>${esc(r.apellidos)}, ${esc(r.nombres)}</td>
+    <td><span class="tag">${esc(r.tipo)}</span></td><td>${esc(r.dependencia)}</td><td>${esc(r.sede)}</td>
+    <td>${esc(r.n_certificado)}</td><td>${fmt(r.fecha_inicio)}</td><td>${fmt(r.fecha_fin)}</td>
+    <td class="num">${r.dias}</td><td class="num"><b>${r.dias_acumulados}</b></td>
+    <td><span class="tag ${r.subsidiado ? "si" : ""}">${r.subsidiado ? "Sí" : "No"}</span></td>
+    <td><button class="peligro" data-del="${r.id}">Eliminar</button></td></tr>`;
+}
+async function eliminarLic(id) {
+  if (!confirm("¿Eliminar esta licencia? No se puede deshacer.")) return;
+  const { error } = await sb.from("licencias").delete().eq("id", id);
+  if (error) return alert("No se pudo eliminar: " + error.message);
+  irA(vistaActual);
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-del]"); if (b) eliminarLic(b.dataset.del); });
+
+/* ---------- Sedes ---------- */
+async function cargarSedes() {
+  const { data } = await sb.from("personal").select("sede");
+  const sedes = [...new Set((data || []).map(x => x.sede))].sort();
+  const opts = v => `<option value="">${v}</option>` + sedes.map(s => `<option>${esc(s)}</option>`).join("");
+  const a = $("fSede").value; $("fSede").innerHTML = opts("Todas"); $("fSede").value = a;
+  $("sedes").innerHTML = sedes.map(s => `<option value="${esc(s)}">`).join("");
+}
+
+/* ---------- Listado ---------- */
+const FILTROS = ["fDni","fNombre","fDesde","fHasta","fTipo","fDep","fSede"];
+async function cargarLista() {
+  const filtrando = FILTROS.some(id => $(id).value.trim() !== "");
+  let q = sb.from("v_licencias").select("*").order("fecha_inicio", { ascending: false }).order("id", { ascending: false });
+  const dni = $("fDni").value.trim(); if (dni) q = q.eq("dni", dni);
+  $("fNombre").value.trim().split(/\s+/).filter(Boolean).forEach(p => {
+    const t = p.replace(/[%,()*]/g, ""); if (t) q = q.or(`nombres.ilike.%${t}%,apellidos.ilike.%${t}%`);
+  });
+  if ($("fDesde").value) q = q.gte("fecha_inicio", $("fDesde").value);
+  if ($("fHasta").value) q = q.lte("fecha_inicio", $("fHasta").value);
+  if ($("fTipo").value)  q = q.eq("tipo", $("fTipo").value);
+  const dep = $("fDep").value.trim().replace(/[%,()*]/g, ""); if (dep) q = q.ilike("dependencia", `%${dep}%`);
+  if ($("fSede").value)  q = q.eq("sede", $("fSede").value);
+  q = q.limit(filtrando ? 200 : 10);
+  $("titulo").textContent = filtrando ? "Resultados de la búsqueda" : "Últimas 10 licencias";
+  $("tablaLic").querySelector("thead").innerHTML = COLS;
+  const { data, error } = await q;
+  $("tbLista").innerHTML = error ? `<tr><td colspan="12" class="err">Error: ${esc(error.message)}</td></tr>`
+    : !data.length ? `<tr><td colspan="12">Sin resultados.</td></tr>` : data.map(filaLic).join("");
+}
+$("btnBuscar").onclick = cargarLista;
+["fDni","fNombre","fDep"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") cargarLista(); }));
+["fDesde","fHasta","fTipo","fSede"].forEach(id => $(id).addEventListener("change", cargarLista));
+$("btnLimpiar").onclick = () => { FILTROS.forEach(id => $(id).value = ""); cargarLista(); };
+
+/* ---------- Nuevo registro ---------- */
+let personaNueva = null, acumNuevo = 0;
+async function cargarNuevo() {
+  $("tablaNuevo").querySelector("thead").innerHTML = COLS;
+  const { data } = await sb.from("v_licencias").select("*").order("creado_en", { ascending: false }).order("id", { ascending: false }).limit(10);
+  $("tbNuevo").innerHTML = (data || []).map(filaLic).join("") || `<tr><td colspan="12">Aún no hay licencias.</td></tr>`;
+}
+async function buscarPersona() {
+  const dni = $("nDni").value.trim(); personaNueva = null; acumNuevo = 0;
+  if (!/^\d{8}$/.test(dni)) { $("nInfo").textContent = ""; return; }
+  const { data: p } = await sb.from("personal").select("*").eq("dni", dni).maybeSingle();
+  if (!p) return mensaje("nInfo", "Ese DNI no está registrado en Personal.", false);
+  personaNueva = p; actualizarInfo();
+}
+async function idPorDni(dni) { const { data } = await sb.from("personal").select("id").eq("dni", dni).maybeSingle(); return data ? data.id : -1; }
+async function actualizarInfo() {
+  if (!personaNueva) return;
+  const anio = ($("nIni").value || new Date().toISOString()).slice(0, 4);
+  const { data } = await sb.from("licencias").select("dias").eq("personal_id", personaNueva.id)
+    .gte("fecha_inicio", `${anio}-01-01`).lte("fecha_inicio", `${anio}-12-31`);
+  acumNuevo = (data || []).reduce((a, x) => a + x.dias, 0);
+  let nuevos = 0;
+  if ($("nIni").value && $("nFin").value && $("nFin").value >= $("nIni").value)
+    nuevos = Math.round((new Date($("nFin").value) - new Date($("nIni").value)) / 864e5) + 1;
+  const total = acumNuevo + nuevos;
+  const base = `${personaNueva.apellidos}, ${personaNueva.nombres} · ${personaNueva.tipo} · ${personaNueva.dependencia} · ${personaNueva.sede}. Acumulado ${anio}: ${acumNuevo} días`;
+  mensaje("nInfo", nuevos ? `${base}; con esta licencia (${nuevos} días) serían ${total}${total > LIMITE_DIAS ? " — supera el límite de " + LIMITE_DIAS : ""}.` : base + ".", total <= LIMITE_DIAS);
+}
+$("nDni").addEventListener("input", buscarPersona);
+["nIni","nFin"].forEach(id => $(id).addEventListener("change", actualizarInfo));
+
+$("btnGuardarLic").onclick = async () => {
+  const dni = $("nDni").value.trim();
+  if (!/^\d{8}$/.test(dni)) return mensaje("nMsg", "El DNI debe tener 8 dígitos.", false);
+  if (!$("nIni").value || !$("nFin").value) return mensaje("nMsg", "Indica fecha de inicio y fin.", false);
+  if ($("nFin").value < $("nIni").value) return mensaje("nMsg", "La fecha fin no puede ser anterior al inicio.", false);
+  const id = await idPorDni(dni);
+  if (id < 0) return mensaje("nMsg", "Ese DNI no está en Personal. Regístralo primero.", false);
+  const { error } = await sb.from("licencias").insert({
+    personal_id: id, n_certificado: $("nCert").value.trim() || null,
+    fecha_inicio: $("nIni").value, fecha_fin: $("nFin").value, subsidiado: $("nSub").value === "true"
+  });
+  if (error) return mensaje("nMsg", error.message, false);
+  mensaje("nMsg", "Licencia guardada.", true);
+  ["nDni","nCert","nIni","nFin"].forEach(x => $(x).value = ""); $("nInfo").textContent = ""; personaNueva = null;
+  cargarNuevo();
+};
+
+/* ---------- Personal ---------- */
+$("pTipo").onchange = () => { $("lblDep").textContent = $("pTipo").value === "Docente" ? "Escuela profesional" : "Oficina"; };
+async function cargarPersonal() {
+  let data; try { data = await traerTodo("personal"); } catch { return; }
+  data.sort((a, b) => a.apellidos.localeCompare(b.apellidos, "es"));
+  $("tbPersonal").innerHTML = data.map(p => `<tr><td>${esc(p.dni)}</td><td>${esc(p.apellidos)}, ${esc(p.nombres)}</td><td>${esc(p.celular)}</td>
+    <td><span class="tag">${esc(p.tipo)}</span></td><td>${esc(p.dependencia)}</td><td>${esc(p.sede)}</td></tr>`).join("");
+}
+$("btnGuardarPer").onclick = async () => {
+  const f = { dni: $("pDni").value.trim(), nombres: $("pNom").value.trim(), apellidos: $("pApe").value.trim(),
+    celular: $("pCel").value.trim() || null, tipo: $("pTipo").value, dependencia: $("pDep").value.trim(), sede: $("pSede").value.trim() };
+  if (!/^\d{8}$/.test(f.dni)) return mensaje("pMsg", "El DNI debe tener 8 dígitos.", false);
+  if (!f.nombres || !f.apellidos || !f.dependencia || !f.sede) return mensaje("pMsg", "Completa los campos obligatorios.", false);
+  const { error } = await sb.from("personal").insert(f);
+  if (error) return mensaje("pMsg", error.code === "23505" ? "Ese DNI ya está registrado." : error.message, false);
+  mensaje("pMsg", "Personal guardado.", true);
+  ["pDni","pNom","pApe","pCel","pDep"].forEach(x => $(x).value = "");
+  cargarPersonal(); cargarSedes();
+};
+
+/* ---------- Usuarios ---------- */
+async function llamarUsuarios(body) {
+  const { data, error } = await sb.functions.invoke("smooth-service", { body });
+  if (error) {
+    let m = error.message;
+    try { const j = await error.context.json(); if (j.error) m = j.error; } catch {}
+    throw new Error(m);
+  }
+  return data;
+}
+async function cargarUsuarios() {
+  try {
+    const { usuarios } = await llamarUsuarios({ action: "list" });
+    $("tbUsuarios").innerHTML = usuarios.map(u => `<tr><td>${esc(u.email)}</td>
+      <td><span class="tag">${u.rol === "admin" ? "Administrador principal" : "Editor"}</span></td>
+      <td>${esc((u.creado_en || "").slice(0, 10).split("-").reverse().join("/"))}</td>
+      <td style="display:flex;gap:6px">
+        <button class="sec" style="padding:3px 9px;font-size:12px" data-clave="${esc(u.user_id)}">Cambiar clave</button>
+        ${u.rol === "admin" ? "" : `<button class="peligro" data-quitar="${esc(u.user_id)}">Eliminar</button>`}
+      </td></tr>`).join("");
+  } catch (e) { $("tbUsuarios").innerHTML = `<tr><td colspan="4" class="err">${esc(e.message)}</td></tr>`; }
+}
+$("btnCrearUsuario").onclick = async () => {
+  try {
+    await llamarUsuarios({ action: "create", email: $("uEmail").value.trim(), password: $("uPass").value });
+    mensaje("uMsg", "Usuario creado. Ya puede iniciar sesión.", true);
+    $("uEmail").value = ""; $("uPass").value = ""; cargarUsuarios();
+  } catch (e) { mensaje("uMsg", e.message, false); }
+};
+document.addEventListener("click", async e => {
+  const q = e.target.closest("[data-quitar]"), c = e.target.closest("[data-clave]");
+  try {
+    if (q && confirm("¿Eliminar este usuario? Ya no podrá ingresar.")) { await llamarUsuarios({ action: "delete", user_id: q.dataset.quitar }); cargarUsuarios(); }
+    if (c) { const p = prompt("Nueva contraseña (mínimo 8 caracteres):"); if (p) { await llamarUsuarios({ action: "password", user_id: c.dataset.clave, password: p }); mensaje("uMsg", "Contraseña actualizada.", true); } }
+  } catch (err) { mensaje("uMsg", err.message, false); }
+});
+
+/* ================= DASHBOARD ================= */
+let DATOS = [], PERSONAL = [], GRAFICOS = {};
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+async function cargarDashboard() {
+  try {
+    [DATOS, PERSONAL] = await Promise.all([traerTodo("v_licencias"), traerTodo("personal")]);
+  } catch (e) { $("kpis").innerHTML = `<div class="aviso">No se pudieron cargar los datos: ${esc(e.message)}</div>`; return; }
+  const anios = [...new Set(DATOS.map(r => r.fecha_inicio.slice(0, 4)))].sort().reverse();
+  const act = $("dAnio").value;
+  $("dAnio").innerHTML = `<option value="">Todos los años</option>` + anios.map(a => `<option>${a}</option>`).join("");
+  $("dAnio").value = act && anios.includes(act) ? act : (anios[0] || "");
+  const sedes = [...new Set(PERSONAL.map(p => p.sede))].sort(), s0 = $("dSede").value;
+  $("dSede").innerHTML = `<option value="">Todas</option>` + sedes.map(s => `<option>${esc(s)}</option>`).join("");
+  $("dSede").value = s0;
+  pintarDashboard();
+}
+["dAnio","dTipo","dSede"].forEach(id => $(id).addEventListener("change", pintarDashboard));
+
+function agrupar(filas, clave, valor) {
+  const m = new Map();
+  filas.forEach(r => { const k = clave(r); m.set(k, (m.get(k) || 0) + valor(r)); });
+  return m;
+}
+function dibujar(id, cfg) {
+  if (GRAFICOS[id]) GRAFICOS[id].destroy();
+  GRAFICOS[id] = new Chart($(id), cfg);
+}
+function opcionesBase(extra = {}) {
+  const ink2 = css("--ink2"), grid = css("--grid"), axis = css("--axis");
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { padding: 10, boxPadding: 4 } },
+    scales: {
+      x: { ticks: { color: ink2 }, grid: { display: false }, border: { color: axis } },
+      y: { beginAtZero: true, ticks: { color: ink2, precision: 0 }, grid: { color: grid }, border: { display: false } }
+    }, ...extra
+  };
+}
+function barras(id, etiquetas, valores, { horizontal = false, nombre = "Días", color = css("--s1") } = {}) {
+  const o = opcionesBase();
+  if (horizontal) {
+    o.indexAxis = "y";
+    o.scales.x = { beginAtZero: true, ticks: { color: css("--ink2"), precision: 0 }, grid: { color: css("--grid") }, border: { display: false } };
+    o.scales.y = { ticks: { color: css("--ink2") }, grid: { display: false }, border: { color: css("--axis") } };
+  }
+  dibujar(id, { type: "bar", data: { labels: etiquetas, datasets: [{ label: nombre, data: valores, backgroundColor: color, borderRadius: 4, maxBarThickness: 36 }] }, options: o });
+}
+function dona(id, etiquetas, valores, colores, nombre) {
+  dibujar(id, { type: "doughnut",
+    data: { labels: etiquetas, datasets: [{ label: nombre, data: valores, backgroundColor: colores, borderColor: css("--surface"), borderWidth: 3 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: "62%",
+      plugins: { legend: { position: "bottom", labels: { color: css("--ink2"), boxWidth: 12, usePointStyle: true } } } } });
+}
+function mayores(mapa, n) { return [...mapa.entries()].sort((a, b) => b[1] - a[1]).slice(0, n); }
+
+function pintarDashboard() {
+  const anio = $("dAnio").value, tipo = $("dTipo").value, sede = $("dSede").value;
+  const F = DATOS.filter(r => (!anio || r.fecha_inicio.startsWith(anio)) && (!tipo || r.tipo === tipo) && (!sede || r.sede === sede));
+  const personalFiltrado = PERSONAL.filter(p => (!tipo || p.tipo === tipo) && (!sede || p.sede === sede));
+
+  // acumulados por persona y año
+  const acum = new Map();
+  F.forEach(r => { const k = r.personal_id + "|" + r.fecha_inicio.slice(0, 4); const a = acum.get(k) || { r, dias: 0 }; a.dias += r.dias; acum.set(k, a); });
+  const excedidos = [...acum.values()].filter(a => a.dias > LIMITE_DIAS).sort((a, b) => b.dias - a.dias);
+  const personasConLic = new Set(F.map(r => r.personal_id)).size;
+  const totalDias = F.reduce((a, r) => a + r.dias, 0);
+  const personasExceden = new Set(excedidos.map(a => a.r.personal_id)).size;
+
+  const kpi = (v, l) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+  $("kpis").innerHTML =
+    kpi(F.length.toLocaleString("es"), "Licencias registradas") +
+    kpi(totalDias.toLocaleString("es"), "Días de licencia en total") +
+    kpi(F.length ? (totalDias / F.length).toFixed(1).replace(".", ",") : "0", "Promedio de días por licencia") +
+    kpi(personasConLic.toLocaleString("es"), `Personas con licencia (de ${personalFiltrado.length.toLocaleString("es")} registradas)`) +
+    kpi(personasExceden.toLocaleString("es"), `Personas que superan ${LIMITE_DIAS} días`) +
+    kpi(F.length ? Math.round(100 * F.filter(r => r.subsidiado).length / F.length) + "%" : "0%", "Licencias subsidiadas");
+
+  $("subMes").textContent = anio ? `Cantidad de licencias iniciadas en ${anio}` : "Cantidad de licencias iniciadas (todos los años sumados)";
+
+  // por mes
+  const porMesN = Array(12).fill(0), porMesD = Array(12).fill(0);
+  F.forEach(r => { const m = +r.fecha_inicio.slice(5, 7) - 1; porMesN[m]++; porMesD[m] += r.dias; });
+  barras("cMes", MESES, porMesN, { nombre: "Licencias" });
+  barras("cDiasMes", MESES, porMesD, { nombre: "Días" });
+
+  // tipo y subsidiado
+  const nTipo = (t) => F.filter(r => r.tipo === t).length;
+  dona("cTipo", ["Administrativo", "Docente"], [nTipo("Administrativo"), nTipo("Docente")], [css("--s1"), css("--s2")], "Licencias");
+  const nSi = F.filter(r => r.subsidiado).length;
+  dona("cSub", ["Subsidiado", "No subsidiado"], [nSi, F.length - nSi], [css("--s3"), css("--s4")], "Licencias");
+
+  // duración
+  const rangos = [["1 día", 1, 1], ["2–3 días", 2, 3], ["4–7 días", 4, 7], ["8–15 días", 8, 15], ["16–30 días", 16, 30], ["Más de 30", 31, 1e9]];
+  barras("cDur", rangos.map(r => r[0]), rangos.map(([, a, b]) => F.filter(r => r.dias >= a && r.dias <= b).length), { nombre: "Licencias" });
+
+  // sede, escuela, oficina
+  const sedes = mayores(agrupar(F, r => r.sede, r => r.dias), 10);
+  barras("cSede", sedes.map(x => x[0]), sedes.map(x => x[1]), { horizontal: true });
+  const esc10 = mayores(agrupar(F.filter(r => r.tipo === "Docente"), r => r.dependencia, r => r.dias), 10);
+  barras("cEscuela", esc10.map(x => x[0]), esc10.map(x => x[1]), { horizontal: true });
+  const ofi10 = mayores(agrupar(F.filter(r => r.tipo === "Administrativo"), r => r.dependencia, r => r.dias), 10);
+  barras("cOficina", ofi10.map(x => x[0]), ofi10.map(x => x[1]), { horizontal: true });
+
+  // tabla de excedidos
+  $("tbExcede").innerHTML = excedidos.length ? excedidos.map(a => `<tr class="excede">
+    <td>${esc(a.r.dni)}</td><td>${esc(a.r.apellidos)}, ${esc(a.r.nombres)}</td><td>${esc(a.r.tipo)}</td>
+    <td>${esc(a.r.dependencia)}</td><td>${esc(a.r.sede)}</td><td class="num">${a.r.fecha_inicio.slice(0, 4)}</td><td class="num"><b>${a.dias}</b></td></tr>`).join("")
+    : `<tr><td colspan="7">Nadie supera el límite con estos filtros.</td></tr>`;
+}
+
+iniciar();
+</script>
+</body>
+</html>
