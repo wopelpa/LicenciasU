@@ -11,7 +11,7 @@
     color-scheme:light;
     --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
     --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10);
-    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300;
     --brand:#2a78d6; --brand-ink:#fff; --rojo:#fde2e2; --rojo-ink:#7f1d1d; --ok:#006300; --err:#b91c1c;
   }
   @media (prefers-color-scheme:dark){
@@ -19,7 +19,7 @@
       color-scheme:dark;
       --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
       --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
-      --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+      --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
       --brand:#3987e5; --rojo:#4a2323; --rojo-ink:#fecaca; --ok:#0ca30c; --err:#f87171;
     }
   }
@@ -27,7 +27,7 @@
     color-scheme:dark;
     --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
     --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
-    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
     --brand:#3987e5; --rojo:#4a2323; --rojo-ink:#fecaca; --ok:#0ca30c; --err:#f87171;
   }
   *{box-sizing:border-box}
@@ -133,6 +133,8 @@
         <div class="card chart"><h3>Días de licencia por mes</h3><div class="sub">Suma de días</div><div class="box"><canvas id="cDiasMes" role="img" aria-label="Días de licencia por mes"></canvas></div></div>
         <div class="card chart"><h3>Tipo de personal</h3><div class="sub">Licencias según tipo</div><div class="box"><canvas id="cTipo" role="img" aria-label="Licencias por tipo de personal"></canvas></div></div>
         <div class="card chart"><h3>Subsidiado</h3><div class="sub">Licencias subsidiadas y no subsidiadas</div><div class="box"><canvas id="cSub" role="img" aria-label="Licencias subsidiadas"></canvas></div></div>
+        <div class="card chart"><h3>Sexo</h3><div class="sub">Licencias según sexo del personal</div><div class="box"><canvas id="cSexo" role="img" aria-label="Licencias por sexo"></canvas></div></div>
+        <div class="card chart"><h3>Edad del personal</h3><div class="sub">Licencias según edad al iniciar</div><div class="box"><canvas id="cEdad" role="img" aria-label="Licencias por grupo de edad"></canvas></div></div>
         <div class="card chart"><h3>Duración de las licencias</h3><div class="sub">Licencias según cantidad de días</div><div class="box"><canvas id="cDur" role="img" aria-label="Duración de licencias"></canvas></div></div>
         <div class="card chart"><h3>Días por sede</h3><div class="sub">Suma de días de licencia</div><div class="box"><canvas id="cSede" role="img" aria-label="Días por sede"></canvas></div></div>
         <div class="card chart"><h3>Escuelas profesionales con más días</h3><div class="sub">Docentes · 10 principales</div><div class="box alto"><canvas id="cEscuela" role="img" aria-label="Días por escuela profesional"></canvas></div></div>
@@ -152,7 +154,7 @@
     <section id="v-listado" class="hidden">
       <h2 class="t">Listado de licencias</h2>
       <div class="card"><div class="grid">
-        <div><label for="fDni">Buscar por DNI</label><input id="fDni" inputmode="numeric" maxlength="8" placeholder="8 dígitos"></div>
+        <div><label for="fDni">Buscar por DNI</label><input id="fDni" inputmode="numeric" maxlength="12" placeholder="8 a 12 dígitos"></div>
         <div><label for="fNombre">Buscar por nombres y apellidos</label><input id="fNombre" placeholder="Ej. Torres Manuel"></div>
         <div><label for="fDesde">Fecha desde</label><input id="fDesde" type="date"></div>
         <div><label for="fHasta">Fecha hasta</label><input id="fHasta" type="date"></div>
@@ -173,7 +175,7 @@
       <h2 class="t">Nuevo registro</h2>
       <div class="card">
         <div class="grid">
-          <div><label for="nDni">DNI del personal</label><input id="nDni" inputmode="numeric" maxlength="8" placeholder="8 dígitos"></div>
+          <div><label for="nDni">DNI del personal</label><input id="nDni" inputmode="numeric" maxlength="12" placeholder="8 a 12 dígitos"></div>
           <div><label for="nCert">N° de certificado</label><input id="nCert"></div>
           <div><label for="nIni">Fecha de inicio</label><input id="nIni" type="date"></div>
           <div><label for="nFin">Fecha fin</label><input id="nFin" type="date"></div>
@@ -195,11 +197,16 @@
       <h2 class="t">Personal</h2>
       <div class="card">
         <div class="grid">
-          <div><label for="pDni">DNI</label><input id="pDni" inputmode="numeric" maxlength="8"></div>
+          <div><label for="pDni">DNI</label><input id="pDni" inputmode="numeric" maxlength="12"></div>
           <div><label for="pNom">Nombres</label><input id="pNom"></div>
           <div><label for="pApe">Apellidos</label><input id="pApe"></div>
+          <div><label for="pSexo">Sexo</label><select id="pSexo"><option value="">—</option><option>Femenino</option><option>Masculino</option></select></div>
+          <div><label for="pNac">Fecha de nacimiento</label><input id="pNac" type="date"></div>
+          <div><label for="pCorreo">Correo personal</label><input id="pCorreo" type="email"></div>
+          <div><label for="pCorreoI">Correo institucional</label><input id="pCorreoI" type="email"></div>
           <div><label for="pCel">Celular</label><input id="pCel" inputmode="tel"></div>
           <div><label for="pTipo">Tipo</label><select id="pTipo"><option>Administrativo</option><option>Docente</option></select></div>
+          <div><label for="pCond">Condición</label><input id="pCond" list="conds" placeholder="Ej. DOCENTE CONTRATADO"><datalist id="conds"><option value="DOCENTE PERMANENTE"><option value="DOCENTE CONTRATADO"><option value="JEFE DE PRACTICAS CONTRATADO"><option value="ADMINISTRATIVO PERMANENTE"><option value="ADMINISTRATIVO CONTRATADO"></datalist></div>
           <div><label for="pDep" id="lblDep">Oficina</label><input id="pDep"></div>
           <div><label for="pSede">Sede</label><input id="pSede" list="sedes" placeholder="Ej. Cusco"><datalist id="sedes"></datalist></div>
           <div><button id="btnGuardarPer">Guardar personal</button></div>
@@ -207,8 +214,9 @@
         <div id="pMsg" class="msg"></div>
       </div>
       <div class="card">
-        <div class="tablewrap"><table>
-          <thead><tr><th>DNI</th><th>Apellidos y nombres</th><th>Celular</th><th>Tipo</th><th>Escuela / Oficina</th><th>Sede</th></tr></thead>
+        <div class="grid" style="margin-bottom:10px"><div><label for="pBuscar">Buscar en el personal (DNI, nombre, correo, escuela u oficina)</label><input id="pBuscar" placeholder="Escribe para filtrar"></div><div id="pCuenta" class="nota" style="margin:0 0 8px"></div></div>
+        <div class="tablewrap"><table style="min-width:1250px">
+          <thead><tr><th>DNI</th><th>Apellidos y nombres</th><th>Sexo</th><th>Nacimiento</th><th>Correo</th><th>Correo institucional</th><th>Celular</th><th>Tipo</th><th>Condición</th><th>Escuela / Oficina</th><th>Sede</th></tr></thead>
           <tbody id="tbPersonal"></tbody>
         </table></div>
       </div>
@@ -382,7 +390,7 @@ async function cargarNuevo() {
 }
 async function buscarPersona() {
   const dni = $("nDni").value.trim(); personaNueva = null; acumNuevo = 0;
-  if (!/^\d{8}$/.test(dni)) { $("nInfo").textContent = ""; return; }
+  if (!/^\d{8,12}$/.test(dni)) { $("nInfo").textContent = ""; return; }
   const { data: p } = await sb.from("personal").select("*").eq("dni", dni).maybeSingle();
   if (!p) return mensaje("nInfo", "Ese DNI no está registrado en Personal.", false);
   personaNueva = p; actualizarInfo();
@@ -406,7 +414,7 @@ $("nDni").addEventListener("input", buscarPersona);
 
 $("btnGuardarLic").onclick = async () => {
   const dni = $("nDni").value.trim();
-  if (!/^\d{8}$/.test(dni)) return mensaje("nMsg", "El DNI debe tener 8 dígitos.", false);
+  if (!/^\d{8,12}$/.test(dni)) return mensaje("nMsg", "El DNI debe tener entre 8 y 12 dígitos.", false);
   if (!$("nIni").value || !$("nFin").value) return mensaje("nMsg", "Indica fecha de inicio y fin.", false);
   if ($("nFin").value < $("nIni").value) return mensaje("nMsg", "La fecha fin no puede ser anterior al inicio.", false);
   const id = await idPorDni(dni);
@@ -423,21 +431,33 @@ $("btnGuardarLic").onclick = async () => {
 
 /* ---------- Personal ---------- */
 $("pTipo").onchange = () => { $("lblDep").textContent = $("pTipo").value === "Docente" ? "Escuela profesional" : "Oficina"; };
+let PERS = [];
 async function cargarPersonal() {
-  let data; try { data = await traerTodo("personal"); } catch { return; }
-  data.sort((a, b) => a.apellidos.localeCompare(b.apellidos, "es"));
-  $("tbPersonal").innerHTML = data.map(p => `<tr><td>${esc(p.dni)}</td><td>${esc(p.apellidos)}, ${esc(p.nombres)}</td><td>${esc(p.celular)}</td>
-    <td><span class="tag">${esc(p.tipo)}</span></td><td>${esc(p.dependencia)}</td><td>${esc(p.sede)}</td></tr>`).join("");
+  try { PERS = await traerTodo("personal"); } catch { return; }
+  PERS.sort((x, y) => x.apellidos.localeCompare(y.apellidos, "es"));
+  pintarPersonal();
 }
+function pintarPersonal() {
+  const q = $("pBuscar").value.trim().toLowerCase();
+  const L = q ? PERS.filter(p => [p.dni, p.apellidos, p.nombres, p.correo, p.correo_institucional, p.dependencia, p.sede, p.condicion].join(" ").toLowerCase().includes(q)) : PERS;
+  $("pCuenta").textContent = `${L.length.toLocaleString("es")} de ${PERS.length.toLocaleString("es")} personas`;
+  $("tbPersonal").innerHTML = L.slice(0, 500).map(p => `<tr><td>${esc(p.dni)}</td><td>${esc(p.apellidos)}, ${esc(p.nombres)}</td>
+    <td>${esc(p.sexo)}</td><td>${fmt(p.fecha_nacimiento)}</td><td>${esc(p.correo)}</td><td>${esc(p.correo_institucional)}</td><td>${esc(p.celular)}</td>
+    <td><span class="tag">${esc(p.tipo)}</span></td><td>${esc(p.condicion)}</td><td>${esc(p.dependencia)}</td><td>${esc(p.sede)}</td></tr>`).join("")
+    + (L.length > 500 ? `<tr><td colspan="11" class="nota">Se muestran las primeras 500. Usa el buscador para acotar.</td></tr>` : "");
+}
+$("pBuscar").addEventListener("input", pintarPersonal);
 $("btnGuardarPer").onclick = async () => {
   const f = { dni: $("pDni").value.trim(), nombres: $("pNom").value.trim(), apellidos: $("pApe").value.trim(),
-    celular: $("pCel").value.trim() || null, tipo: $("pTipo").value, dependencia: $("pDep").value.trim(), sede: $("pSede").value.trim() };
-  if (!/^\d{8}$/.test(f.dni)) return mensaje("pMsg", "El DNI debe tener 8 dígitos.", false);
+    celular: $("pCel").value.trim() || null, tipo: $("pTipo").value, dependencia: $("pDep").value.trim(), sede: $("pSede").value.trim(),
+    sexo: $("pSexo").value || null, fecha_nacimiento: $("pNac").value || null, correo: $("pCorreo").value.trim() || null,
+    correo_institucional: $("pCorreoI").value.trim() || null, condicion: $("pCond").value.trim() || null };
+  if (!/^\d{8,12}$/.test(f.dni)) return mensaje("pMsg", "El DNI debe tener entre 8 y 12 dígitos.", false);
   if (!f.nombres || !f.apellidos || !f.dependencia || !f.sede) return mensaje("pMsg", "Completa los campos obligatorios.", false);
   const { error } = await sb.from("personal").insert(f);
   if (error) return mensaje("pMsg", error.code === "23505" ? "Ese DNI ya está registrado." : error.message, false);
   mensaje("pMsg", "Personal guardado.", true);
-  ["pDni","pNom","pApe","pCel","pDep"].forEach(x => $(x).value = "");
+  ["pDni","pNom","pApe","pCel","pDep","pNac","pCorreo","pCorreoI","pCond","pSexo"].forEach(x => $(x).value = "");
   cargarPersonal(); cargarSedes();
 };
 
@@ -569,6 +589,13 @@ function pintarDashboard() {
   dona("cTipo", ["Administrativo", "Docente"], [nTipo("Administrativo"), nTipo("Docente")], [css("--s1"), css("--s2")], "Licencias");
   const nSi = F.filter(r => r.subsidiado).length;
   dona("cSub", ["Subsidiado", "No subsidiado"], [nSi, F.length - nSi], [css("--s3"), css("--s4")], "Licencias");
+
+  // sexo y edad
+  const nSx = x => F.filter(r => r.sexo === x).length;
+  dona("cSexo", ["Femenino", "Masculino"], [nSx("Femenino"), nSx("Masculino")], [css("--s5"), css("--s6")], "Licencias");
+  const edad = r => r.fecha_nacimiento ? (+r.fecha_inicio.slice(0, 4)) - (+r.fecha_nacimiento.slice(0, 4)) - (r.fecha_inicio.slice(5) < r.fecha_nacimiento.slice(5) ? 1 : 0) : null;
+  const gE = [["Menos de 30", 0, 29], ["30–39", 30, 39], ["40–49", 40, 49], ["50–59", 50, 59], ["60 o más", 60, 200]];
+  barras("cEdad", gE.map(g => g[0]), gE.map(([, a, b]) => F.filter(r => { const e = edad(r); return e !== null && e >= a && e <= b; }).length), { nombre: "Licencias" });
 
   // duración
   const rangos = [["1 día", 1, 1], ["2–3 días", 2, 3], ["4–7 días", 4, 7], ["8–15 días", 8, 15], ["16–30 días", 16, 30], ["Más de 30", 31, 1e9]];
