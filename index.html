@@ -74,6 +74,14 @@
   .tag.si{border-color:var(--s3);color:var(--ink)}
   #login{max-width:340px;margin:12vh auto;padding:0 16px}
   #login .card{display:grid;gap:10px}
+  .pager{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;margin-top:12px}
+  .pager .pg{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+  .pager button{background:var(--surface);color:var(--ink);border-color:var(--axis);padding:5px 10px;min-width:34px}
+  .pager button.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+  .pager button:disabled{opacity:.4;cursor:default}
+  .pager .pp{display:flex;gap:8px;align-items:center;color:var(--ink2);font-size:13px}
+  .pager .pp select,.pager .pp input{width:auto;padding:4px 6px}
+  .pager .pp input{width:64px}
   .aviso{background:var(--rojo);color:var(--rojo-ink);padding:8px 10px;border-radius:8px;font-size:13px}
 
   /* dashboard */
@@ -164,9 +172,18 @@
         <div style="display:flex;gap:8px"><button id="btnBuscar">Buscar</button><button class="sec" id="btnLimpiar">Limpiar</button></div>
       </div></div>
       <div class="card">
-        <div id="titulo" style="font-weight:600;margin-bottom:8px">Últimas 10 licencias</div>
+        <div id="titulo" style="font-weight:600;margin-bottom:8px">Licencias (las más recientes primero)</div>
         <div class="tablewrap"><table id="tablaLic"><thead></thead><tbody id="tbLista"><tr><td>Cargando…</td></tr></tbody></table></div>
-        <div class="nota">Fila en rojo suave: más de <span class="lim"></span> días acumulados en el año. Sin filtros se muestran las 10 más recientes; con filtros, hasta 200.</div>
+        <div class="pager">
+          <div class="pp"><span id="pRango"></span></div>
+          <div class="pg" id="pBotones"></div>
+          <div class="pp">
+            <label for="pTam" style="margin:0">Por página</label>
+            <select id="pTam"><option>10</option><option>25</option><option>50</option><option>100</option><option>200</option></select>
+            <label for="pIr" style="margin:0">Ir a</label><input id="pIr" type="number" min="1" inputmode="numeric">
+          </div>
+        </div>
+        <div class="nota">Fila en rojo suave: más de <span class="lim"></span> días acumulados en el año.</div>
       </div>
     </section>
 
@@ -357,9 +374,13 @@ async function cargarSedes() {
 
 /* ---------- Listado ---------- */
 const FILTROS = ["fDni","fNombre","fDesde","fHasta","fTipo","fDep","fSede"];
+let PAG = 1, TOTAL = 0;
+const tam = () => +$("pTam").value;
+const paginas = () => Math.max(1, Math.ceil(TOTAL / tam()));
+
 async function cargarLista() {
-  const filtrando = FILTROS.some(id => $(id).value.trim() !== "");
-  let q = sb.from("v_licencias").select("*").order("fecha_inicio", { ascending: false }).order("id", { ascending: false });
+  const n = tam(), desde = (PAG - 1) * n;
+  let q = sb.from("v_licencias").select("*", { count: "exact" }).order("fecha_inicio", { ascending: false }).order("id", { ascending: false });
   const dni = $("fDni").value.trim(); if (dni) q = q.eq("dni", dni);
   $("fNombre").value.trim().split(/\s+/).filter(Boolean).forEach(p => {
     const t = p.replace(/[%,()*]/g, ""); if (t) q = q.or(`nombres.ilike.%${t}%,apellidos.ilike.%${t}%`);
@@ -369,17 +390,44 @@ async function cargarLista() {
   if ($("fTipo").value)  q = q.eq("tipo", $("fTipo").value);
   const dep = $("fDep").value.trim().replace(/[%,()*]/g, ""); if (dep) q = q.ilike("dependencia", `%${dep}%`);
   if ($("fSede").value)  q = q.eq("sede", $("fSede").value);
-  q = q.limit(filtrando ? 200 : 10);
-  $("titulo").textContent = filtrando ? "Resultados de la búsqueda" : "Últimas 10 licencias";
+  q = q.range(desde, desde + n - 1);
   $("tablaLic").querySelector("thead").innerHTML = COLS;
-  const { data, error } = await q;
-  $("tbLista").innerHTML = error ? `<tr><td colspan="12" class="err">Error: ${esc(error.message)}</td></tr>`
-    : !data.length ? `<tr><td colspan="12">Sin resultados.</td></tr>` : data.map(filaLic).join("");
+  const { data, error, count } = await q;
+  if (error) {
+    // p. ej. una página que ya no existe tras eliminar registros: volver a la última
+    if (PAG > 1 && /range|416|PGRST103/i.test(error.message + (error.code || ""))) { PAG = Math.max(1, PAG - 1); return cargarLista(); }
+    $("tbLista").innerHTML = `<tr><td colspan="12" class="err">Error: ${esc(error.message)}</td></tr>`; return;
+  }
+  TOTAL = count ?? data.length;
+  if (!data.length && PAG > 1) { PAG = paginas(); return cargarLista(); }
+  $("tbLista").innerHTML = data.length ? data.map(filaLic).join("") : `<tr><td colspan="12">Sin resultados.</td></tr>`;
+  pintarPaginador(data.length, desde);
 }
-$("btnBuscar").onclick = cargarLista;
-["fDni","fNombre","fDep"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") cargarLista(); }));
-["fDesde","fHasta","fTipo","fSede"].forEach(id => $(id).addEventListener("change", cargarLista));
-$("btnLimpiar").onclick = () => { FILTROS.forEach(id => $(id).value = ""); cargarLista(); };
+
+function pintarPaginador(enPagina, desde) {
+  const tp = paginas();
+  $("pRango").textContent = TOTAL ? `Mostrando ${(desde + 1).toLocaleString("es")}–${(desde + enPagina).toLocaleString("es")} de ${TOTAL.toLocaleString("es")}` : "0 resultados";
+  const btn = (txt, pag, { on = false, off = false, tit = "" } = {}) =>
+    `<button type="button" class="${on ? "on" : ""}" ${off ? "disabled" : `data-pag="${pag}"`} title="${tit}" ${on ? 'aria-current="page"' : ""}>${txt}</button>`;
+  const ini = Math.max(1, Math.min(PAG - 2, tp - 4)), fin = Math.min(tp, ini + 4);
+  let h = btn("«", 1, { off: PAG === 1, tit: "Primera" }) + btn("‹", PAG - 1, { off: PAG === 1, tit: "Anterior" });
+  if (ini > 1) h += btn("1", 1) + (ini > 2 ? "<span>…</span>" : "");
+  for (let i = ini; i <= fin; i++) h += btn(i, i, { on: i === PAG });
+  if (fin < tp) h += (fin < tp - 1 ? "<span>…</span>" : "") + btn(tp, tp);
+  h += btn("›", PAG + 1, { off: PAG === tp, tit: "Siguiente" }) + btn("»", tp, { off: PAG === tp, tit: "Última" });
+  $("pBotones").innerHTML = tp > 1 ? h : "";
+  $("pIr").max = tp;
+}
+function irPagina(n) { PAG = Math.min(Math.max(1, n), paginas()); cargarLista(); }
+$("pBotones").addEventListener("click", e => { const b = e.target.closest("[data-pag]"); if (b) irPagina(+b.dataset.pag); });
+$("pTam").addEventListener("change", () => { PAG = 1; cargarLista(); });
+$("pIr").addEventListener("keydown", e => { if (e.key === "Enter" && $("pIr").value) { irPagina(+$("pIr").value); $("pIr").value = ""; } });
+
+const buscar = () => { PAG = 1; cargarLista(); };
+$("btnBuscar").onclick = buscar;
+["fDni","fNombre","fDep"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") buscar(); }));
+["fDesde","fHasta","fTipo","fSede"].forEach(id => $(id).addEventListener("change", buscar));
+$("btnLimpiar").onclick = () => { FILTROS.forEach(id => $(id).value = ""); buscar(); };
 
 /* ---------- Nuevo registro ---------- */
 let personaNueva = null, acumNuevo = 0;
